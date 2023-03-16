@@ -1,6 +1,8 @@
 # Store inventory Management System
  Inventory management systems control the process of managing all incoming and outgoing products in a retail store or online
 
+ Built with python tkinter and SQlite. 
+
 ## Language
 
  Python(GUI)
@@ -8,6 +10,7 @@
 ## Database
 
  SQlite (DB browser)
+ All data are self generated.
 
 ## Contact me on
 
