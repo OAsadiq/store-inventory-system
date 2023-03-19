@@ -7,6 +7,9 @@ from tkcalendar import Calendar, DateEntry
 import datetime
 import time
 import sys
+import tempfile
+import os
+import random
 
 #=========================================================================Window======================================================================================================================================================================================================
 win = Tk()
@@ -40,6 +43,12 @@ DATE=StringVar()
 QUANTITY=StringVar()
 TOTAL=StringVar()
 TOTAL.set("  ")
+bill_no=StringVar()
+x=random.randint(1000,9999)
+bill_no.set(str(x))
+
+global l
+l=[]
 #======================================================================Time=========================================================================================================================================================================================================
 def get_time():
     timeVar = time.strftime("%I:%M:%S %p")
@@ -108,8 +117,7 @@ def Database():
     cursor.execute("CREATE TABLE IF NOT EXISTS `Staff_Store_Keeper` (STAFF_ID3 INTEGER PRIMARY KEY, STAFF_FULLNAME TEXT, STAFF_USERNAME TEXT, STAFF_TEL TEXT, STAFF_EMAIL TEXT, STAFF_ADDRESS TEXT, STAFF_PASSWORD TEXT, STAFF_ROLE TEXT)")
     cursor.execute("CREATE TABLE IF NOT EXISTS `Products` (PRODUCT_ID INTEGER PRIMARY KEY, PRODUCT_NAME TEXT, PRODUCT_CATEGORY TEXT, PRODUCT_PRICE TEXT)")
     cursor.execute("CREATE TABLE IF NOT EXISTS `Sales` (Sales_ID INTEGER PRIMARY KEY, SPRODUCT_ID TEXT, SPRODUCT_NAME TEXT, SPRODUCT_CATEGORY TEXT, SPRODUCT_PRICE TEXT, QUANTITY TEXT, DATE TEXT, TOTAL TEXT)")
-    #cursor.execute("CREATE TABLE IF NOT EXISTS `sales` (Sales_ID INTEGER PRIMARY KEY, SPRODUCT_ID TEXT, SPRODUCT_NAME TEXT, SPRODUCT_CATEGORY TEXT, SPRODUCT_PRICE TEXT, QUANTITY TEXT, DATE TEXT, TOTAL TEXT)")
-#REGISTERS
+#REGISTER FUNC
 def Register1():
     win.withdraw()
     Database()
@@ -149,7 +157,7 @@ def Register3():
             cursor.execute("INSERT INTO `Staff_Store_Keeper` (STAFF_FULLNAME, STAFF_USERNAME, STAFF_TEL, STAFF_EMAIL, STAFF_ADDRESS, STAFF_PASSWORD, STAFF_ROLE)VALUES(?, ?, ?, ?, ?, ?, ?)", (str(FULLNAME.get()), str(USERNAME.get()), str(TEL.get()), str(EMAIL.get()), str(ADDRESS.get()), str(PASSWORD.get()), str(ROLE.get())))
             conn.commit()
             staff_reg3_result.config(text="Successful Registration", fg="green")
-#LOGINS
+#LOGINS FUNC
 def Login_Admin():
     win.withdraw()
     Database()
@@ -186,7 +194,7 @@ def Login_Store():
             store_keeper_win()
         else:
             storekeeper_logresult.config(text="Invalid Username or Password", fg="red")
-#SHOW SALES
+#SHOW SALES FUNC
 def show():
     cursor.execute("SELECT * FROM `Sales` ")
     fetch = cursor.fetchall()
@@ -195,7 +203,7 @@ def show():
     cursor.close()
     conn.commit()
     conn.close()
-#ADD PRODUCT
+#ADD PRODUCT FUNC
 def Add_productdb():
     win.withdraw()
     Database()
@@ -210,39 +218,16 @@ def Add_productdb():
             conn.commit()
             conn.close()
             Add_product_result.config(text="Successfully Added", fg="green")
-#ADD CART & REMOVE FROM CART
+#ADD SALES To DATABASE
 def Add_to():
     Database()
     if PID.get() =="" or PNAME.get() =="" or PCATEGORY.get() =="" or PPRICE.get() =="" or QUANTITY.get() =="" or DATE.get() =="" or TOTAL.get() =="":
         messagebox.showinfo("error", "Please Fill All Fields", icon="warning")
     else:
-        treeview_1.delete(*treeview_1.get_children())
         cursor = conn.cursor()
         cursor.execute("INSERT INTO `Sales` (SPRODUCT_ID, SPRODUCT_NAME, SPRODUCT_CATEGORY, SPRODUCT_PRICE, QUANTITY, DATE, TOTAL)VALUES(?, ?, ?, ?, ?, ?, ?)", (str(PID.get()), str(PNAME.get()), str(PCATEGORY.get()), str(PPRICE.get()), str(QUANTITY.get()), str(DATE.get()), str(TOTAL.get())))
         conn.commit()
-        cursor.execute("SELECT * FROM `Sales` ")
-        fetch = cursor.fetchall()
-        for data in fetch:
-            treeview_1.insert("", tk.END, values=data)
-        cursor.close()
-        conn.commit()
         conn.close()
-def Remove_from():
-    if not treeview_1.selection():
-        result = messagebox.showwarning("", "Please Select Something First", icon="warning")
-    else:
-        result = messagebox.askquestion("", "Are Sure You Want To Remove From Cart?", icon="warning")
-        if result == 'yes':
-            curItem = treeview_1.focus()
-            contents = (treeview_1.item(curItem))
-            selecteditem = contents['values']
-            treeview_1.delete(curItem)
-            conn = sqlite3.connect("Shopleft.db")
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM `Sales` WHERE `Sales_ID` = %d" % selecteditem[0])
-            conn.commit()
-            cursor.close()
-            conn.close()
 #======================================================================Views, Search, And Others=================================================================================================================================================================================================================================================
 def total_price():
     no1 = int(PPRICE.get())
@@ -316,13 +301,6 @@ def view_staff3():
     for row in row_2:
         tree_view1.insert("", tk.END, values=row)
     conn.close()
-def delete_data():
-    conn = sqlite3.connect("Shopleft.db")
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM Sales")
-    treeview_1.delete(*treeview_1.get_children())
-    conn.commit()
-    conn.close()
 def delete_data1():
     if not tree_view1.selection():
         result = messagebox.showwarning("", "Please Select Something First", icon="warning")
@@ -387,62 +365,149 @@ def delete_data4():
             conn.commit()
             cursor.close()
             conn.close()
-#======================================================================Reciept====================================================================================================================================================================================================================================================
-def reciept():
-    global reciept
-    reciept=Toplevel()
-    reciept.title("RECIEPT")
-    width=400
-    height=300
-    screen_width = reciept.winfo_screenwidth()
-    screen_height = reciept.winfo_screenheight()
+#======================================================================Sales Window====================================================================================================================================================================================================================================================
+
+def clear():
+    PID.set('')
+    PNAME.set('')
+    PCATEGORY.set('')
+    PPRICE.set(0)
+    QUANTITY.set(0)
+    TOTAL.set('')
+
+def exit():
+    op=messagebox.askyesno('Exit','Do you really want to exit')
+    if op>0:
+        win.destroy()
+
+def Sales():
+
+    def welcome():
+        textarea.delete(1.0,END)
+        textarea.insert(END,"\t Welcome Shopleft")
+        textarea.insert(END,f'\n\nBill Number:\t\t{bill_no.get()}')
+        textarea.insert(END,f'\nCustomer Number:\t\t{bill_no.get()}')
+        textarea.insert(END,f"\n\n=========================================")
+        textarea.insert(END,'\nProduct\t\tQTY\t\tPrice')
+        textarea.insert(END,f"\n=========================================\n")
+        textarea.configure(font=("Times New Roman",10,"bold"))
+    
+    def additm():
+        n=int(PPRICE.get())
+        m=int(QUANTITY.get())*n
+        l.append(m)
+        if PNAME.get()=='':
+            messagebox.showerror('Error','Please Enter the product')
+        else:
+            textarea.insert((10.0+float(len(l)-1)),f"{PNAME.get()}\t\t{QUANTITY.get()}\t\t{ m}\n")
+
+    def gbill():
+        tex=textarea.get(10.0,(10.0+float(len(l))))
+        welcome()
+        textarea.insert(END,tex)
+        textarea.insert(END,f"\n=========================================")
+        textarea.insert(END,f"\nTotal Paybill Amount :\t{sum(l)}")
+        textarea.insert(END,f"\n\n=========================================")
+        printbill()
+
+    def printbill():
+        q = textarea.get("1.0", "end-1c")
+        op=messagebox.askyesno('Print bill','Do you want to print the bill')
+        if op>0:
+            temp_file = tempfile.mktemp('.txt')
+            open (temp_file, 'w').write(q)
+            os.startfile(temp_file,"print")
+
+    global Sales, treeview_1, treeview_2
+    Sales =Toplevel()
+    Sales.title("Staff Main Window")
+    width=1200
+    height=600
+    screen_width = Sales.winfo_screenwidth()
+    screen_height = Sales.winfo_screenheight()
     x = (screen_width/2) - (width/2)
     y = (screen_height/2) - (height/2)
-    reciept.geometry("%dx%d+%d+%d" % (width, height, x, y))
-    reciept.resizable(0,0)
-    reciept.configure(bg="white")
+    Sales.geometry("%dx%d+%d+%d" % (width, height, x, y))
+    Sales.resizable(0,0)
+    Sales.configure(bg="white")
 
-    Mid = Frame(reciept, width=250, bg="white")
-    Mid.pack(side=TOP)
-    MidLeft = Frame(Mid, width=100, bg="white")
-    MidLeft.pack(side=LEFT, pady=10)
-    MidLeftPadding = Frame(Mid, width=200, bg="white")
-    MidLeftPadding.pack(side=LEFT)
-    MidRight = Frame(Mid, width=100, bg="white")
-    MidRight.pack(side=RIGHT, pady=10)
+    Sales_title = Label(Sales, text="                              SHOPLEFT                                   ", bg="red", width="100", height="1", font=("TImes New Roman",17,"bold"))
+    Sales_title.pack()
+    Sales_title1 = Label(Sales, text="                            BILLING SYSTEM                                   ", bg="red", width="100", height="1", font=("TImes New Roman",17,"bold"))
+    Sales_title1.pack()
 
-    Print_btn=Button(MidLeft,text="Print",bg="yellow",fg="black",width="5",border="5").pack(side=LEFT)
-    Label(reciept,text="********************** SHOPLEFT ***********************",fg="black",bg="red").pack()
-    Label(reciept,text="DIGITAL~RECIEPT",fg="black",bg="red").pack()
-    tree_view0 = ttk.Treeview(reciept, columns=(1,2,3), show='headings', height="5")
-    tree_view0.heading(1,text="ITEM")
-    tree_view0.heading(2,text="QUANTITY")
-    tree_view0.heading(3,text="PRICE(#)")
-    tree_view0.column('1', stretch=NO, minwidth=0, width=80)
-    tree_view0.column('2', stretch=NO, minwidth=0, width=100)
-    tree_view0.column('3', stretch=NO, minwidth=0, width=80)
-    tree_view0.pack()
-    tree_view0.delete(*tree_view0.get_children())
+    wrapper1 = LabelFrame(Sales, text="CUSTOMER CART", bg="grey")
+    wrapper1.pack(fill="both", side=TOP, padx=20, pady=10)
 
-    conn = sqlite3.connect("Shopleft.db")
-    
-    cursor = conn.cursor()
-    cursor.execute("SELECT SPRODUCT_NAME,QUANTITY,TOTAL FROM `Sales`")
-    
-    row_3 = cursor.fetchall()
+    wrapper2 = LabelFrame(Sales, text="SEARCH", bg="grey")
+    wrapper2.pack(fill="both", side=LEFT, padx=20, pady=10)
 
-    for row in row_3:
+    wrapper3 = LabelFrame(Sales, text="BILLER", bg="grey")
+    wrapper3.pack(fill="both", side=LEFT, padx=20, pady=10)
 
-        tree_view0.insert("", tk.END, values=row)
+    wrapper4 = LabelFrame(Sales, text="", bg="grey")
+    wrapper4.pack(fill="both", side=LEFT, padx=20, pady=10)
 
-    conn.close()
-    time_Var = time.strftime("%I:%M:%S %p")
-    x = datetime.datetime.now()
-    format_date = f"{x:%d- %m -%Y }"
-    time_Var2 = Label(reciept, text=time_Var,fg="black",bg="red").pack()
-    Label(reciept,text=format_date,fg="black",bg="red").pack()
-    Label(reciept,text="",bg="red").pack()
-    Label(reciept,text="********************** THANKS FOR YOUR PATRONAGE ***********************",fg="black",bg="red").pack()
+    space = Label(wrapper1, text="", height="1", bg="grey").grid(row=0, column=0)
+
+    cname= Label(wrapper1, text="Customer Name", bg="grey", fg="white", font=('Time New Roman',10,'bold')).grid(row=1, column=0, padx=8, pady=3)
+    cname_entry= Entry(wrapper1, textvariable=FULLNAME, width="30", border="5").grid(row=1, column=1, padx=8)
+
+    cphone= Label(wrapper1, text="Phone NO.", bg="grey", fg="white", font=('Time New Roman',10,'bold')).grid(row=1, column=2, padx=8, pady=3)
+    cphone_entry= Entry(wrapper1, textvariable=TEL, width="30", border="5").grid(row=1, column=3, padx=8)
+
+    space = Label(wrapper1, text="", width="50", bg="grey").grid(row=1, column=4)
+    Button(wrapper1, text="EXIT", width=17, bg="red", fg="black",border="5", font=("Times New Roman",10,"bold"), command=exit).grid(row=1, column=5, padx=6, pady=3)
+
+    space1 = Label(wrapper1, text="", height="2", bg="grey").grid(row=2, column=0)
+
+    #WRAPPER2
+    Entry(wrapper2, width="34", border="5", textvariable=SEARCH).grid(row=0, column=0, padx=8)
+    Button(wrapper2, text="SEARCH", width="25", bg="yellow", fg="black",border="5", font=('Time New Roman',10,'bold'), command=Searching).grid(row=1, column=0, padx=8, pady=6)
+    treeview_2 = ttk.Treeview(wrapper2, columns=(1,2), show='headings', height="5")
+    treeview_2.heading(1, text="Product ID")
+    treeview_2.heading(2, text="Product Name")
+    treeview_2.column('1',width="200")
+    treeview_2.column('2',width="200")
+    treeview_2.grid(padx=20, pady=10)
+    treeview_2.bind('<Double 1>', display_product)
+    #WRAPPER3
+    slbl_1= Label(wrapper3, text="Product ID",bg="grey", fg="white", font=('Time New Roman',10,'bold')).grid(row=0, column=0, padx=5, pady=3)
+    slbl_1_entry= Entry(wrapper3, textvariable=PID, width="20", border="5").grid(row=0, column=1, padx=5, pady=3)
+
+    lbl_2= Label(wrapper3, text="Product Name",bg="grey", fg="white", font=('Time New Roman',10,'bold')).grid(row=1, column=0, padx=5, pady=3)
+    lbl_2_entry= Entry(wrapper3, textvariable=PNAME, width="20", border="5").grid(row=1, column=1, padx=5, pady=3)
+
+    lbl_3= Label(wrapper3, text="Product Category",bg="grey", fg="white", font=('Time New Roman',10,'bold')).grid(row=2, column=0, padx=5, pady=3)
+    lbl_3_entry= Entry(wrapper3, textvariable=PCATEGORY, width="20", border="5").grid(row=2, column=1, padx=5, pady=3)
+
+    lbl_4= Label(wrapper3, text="Price(#)",bg="grey", fg="white", font=('Time New Roman',10,'bold')).grid(row=3, column=0, padx=5, pady=3)
+    lbl_4_entry= Entry(wrapper3, textvariable=PPRICE, width="20", border="5").grid(row=3, column=1, padx=5, pady=3)
+
+    lbl_5= Label(wrapper3, text="Quantity",bg="grey", fg="white", font=('Time New Roman',10,'bold')).grid(row=4, column=0, padx=5, pady=3)
+    lbl_5_entry= Entry(wrapper3, textvariable=QUANTITY, width="20", border="5").grid(row=4, column=1, padx=5, pady=3)
+
+    lbl_6= Label(wrapper3, text="Date",bg="grey", fg="white", font=('Time New Roman',10,'bold')).grid(row=5, column=0, padx=5, pady=3)
+    cal = DateEntry(wrapper3, textvariable=DATE, width="20", border="5")
+    cal.grid(row=5, column=1, padx=5, pady=3)
+
+    lbl_7= Label(wrapper3, text="Total(#)",bg="grey", fg="white", font=('Time New Roman',10,'bold')).grid(row=6, column=0, padx=5, pady=3)
+    lbl_7_entry= Entry(wrapper3, textvariable=TOTAL, width="20", border="5").grid(row=6, column=1, padx=5, pady=3)
+
+    Button(wrapper3, text="CALCULATE", width=15, bg="yellow", fg="black",border="5", font=('Time New Roman',10,'bold'), command=total_price).grid(row=7,column=0, padx=6, pady=3)
+    Button(wrapper3, text="ADD TO CART", width=15, bg="yellow", fg="black",border="5", font=('Time New Roman',10,'bold'), command=additm).grid(row=7,column=1, padx=6, pady=3)
+    Button(wrapper3, text="GENERATE RECIEPT", bg="yellow", fg="black",border="5", font=('Time New Roman',10,'bold'), command=lambda:[Add_to(), gbill()]).grid(row=8, column=0, padx=6, pady=3)
+    Button(wrapper3, text="CLEAR", width=17, bg="red", fg="black",border="5", font=("Times New Roman",10,"bold"), command=clear).grid(row=8, column=1, padx=6, pady=3)
+    #WRAPPER4
+    bill_title=Label(wrapper4,text='RECEIPT',font=("Times New Roman",10,"bold")).pack(fill=X)
+    scroll_y=Scrollbar(wrapper4, orient=VERTICAL)
+    textarea=Text(wrapper4,yscrollcommand=scroll_y)
+    scroll_y.pack(side=RIGHT,fill=Y)
+    scroll_y.config(command=textarea.yview)
+    textarea.pack()
+
+    welcome()
+
 #======================================================================Login====================================================================================================================================================================================================================================================
 def login1():
     global login1, admin_logresult
@@ -614,109 +679,10 @@ def Add_product():
     Add_product_btn2 = Button(Add_product, text="ADD",bg="yellow", width="10", height="1", border="5", font=("Time New Roman",12,"bold"), command=Add_productdb)
     Add_product_btn2.place(x=150, y=450)
 
-    Add_product_result = Label(Add_product, text="", height="2")
+    Add_product_result = Label(Add_product, text="", height="2", bg="white")
     Add_product_result.place(x=300, y=450)
-#======================================================================Sales Window======================================================================================================================================================================================================
-def Sales():
-    global Sales, treeview_1, treeview_2
-    Sales =Toplevel()
-    Sales.title("Staff Main Window")
-    width=900
-    height=600
-    screen_width = Sales.winfo_screenwidth()
-    screen_height = Sales.winfo_screenheight()
-    x = (screen_width/2) - (width/2)
-    y = (screen_height/2) - (height/2)
-    Sales.geometry("%dx%d+%d+%d" % (width, height, x, y))
-    Sales.resizable(0,0)
-    Sales.configure(bg="white")
 
-    Sales_title = Label(Sales, text="                              SHOPLEFT                                   ", bg="red", width="70", height="1", font=("TImes New Roman",17,"bold"))
-    Sales_title.pack()
-    Sales_title1 = Label(Sales, text="                            BILLING SYSTEM                                   ", bg="red", width="70", height="1", font=("TImes New Roman",17,"bold"))
-    Sales_title1.pack()
-
-    wrapper1 = LabelFrame(Sales, text="CUSTOMER CART", bg="grey")
-    wrapper1.pack(fill="both", side=TOP, padx=20, pady=10)
-
-    wrapper2 = LabelFrame(Sales, text="SEARCH", bg="grey")
-    wrapper2.pack(fill="both", side=LEFT, padx=20, pady=10)
-    
-    wrapper3 = LabelFrame(Sales, text="BILLER", bg="grey")
-    wrapper3.pack(fill="both", side=RIGHT, padx=20, pady=10)
-#WRAPPER1
-    treeview_1 = ttk.Treeview(wrapper1, columns=(1,2,3,4,5,6,7,8), show='headings', height="5")
-    treeview_1.heading(1, text="S/N")
-    treeview_1.heading(2, text="Product ID")
-    treeview_1.heading(3, text="Product Name")
-    treeview_1.heading(4, text="Product Category")
-    treeview_1.heading(5, text="Price(#)")
-    treeview_1.heading(6, text="Quantity")
-    treeview_1.heading(7, text="Date")
-    treeview_1.heading(8, text="Total(#)")
-    
-    treeview_1.column('1',width="70")
-    treeview_1.column('2',width="100")
-    treeview_1.column('3',width="100")
-    treeview_1.column('4',width="130")
-    treeview_1.column('5',width="80")
-    treeview_1.column('6',width="100")
-    treeview_1.column('7',width="80")
-    treeview_1.column('8',width="100")
-    treeview_1.pack()
-
-    Button(wrapper1, text="GENERATE RECIEPT", bg="yellow", fg="black",border="5", font=('Time New Roman',10,'bold'), command=reciept).pack(side=LEFT, padx=6, pady=3)
-    Button(wrapper1, text="REMOVE FROM CART", bg="red", fg="black",border="5", font=('Time New Roman',10,'bold'), command=Remove_from).pack(side=LEFT, padx=6, pady=3)
-#WRAPPER2
-    Entry(wrapper2, width="20", border="5", textvariable=SEARCH).pack(padx=8)
-    Button(wrapper2, text="SEARCH", bg="yellow", fg="black",border="5", font=('Time New Roman',10,'bold'), command=Searching).pack(padx=6, pady=8)
-    treeview_2 = ttk.Treeview(wrapper2, columns=(1,2), show='headings', height="5")
-    treeview_2.heading(1, text="Product ID")
-    treeview_2.heading(2, text="Product Name")
-    treeview_2.column('1',width="150")
-    treeview_2.column('2',width="150")
-    treeview_2.pack(padx=20, pady=10)
-    treeview_2.bind('<Double 1>', display_product)
-#WRAPPER3
-    slbl_1= Label(wrapper3, text="Product ID").grid(row=0, column=0, padx=5, pady=3)
-    slbl_1_entry= Entry(wrapper3, textvariable=PID, width="20", border="5").grid(row=0, column=1, padx=5, pady=3)
-
-    lbl_2= Label(wrapper3, text="Product Name").grid(row=1, column=0, padx=5, pady=3)
-    lbl_2_entry= Entry(wrapper3, textvariable=PNAME, width="20", border="5").grid(row=1, column=1, padx=5, pady=3)
-
-    lbl_3= Label(wrapper3, text="Product Category").grid(row=2, column=0, padx=5, pady=3)
-    lbl_3_entry= Entry(wrapper3, textvariable=PCATEGORY, width="20", border="5").grid(row=2, column=1, padx=5, pady=3)
-
-    lbl_4= Label(wrapper3, text="Price(#)").grid(row=3, column=0, padx=5, pady=3)
-    lbl_4_entry= Entry(wrapper3, textvariable=PPRICE, width="20", border="5").grid(row=3, column=1, padx=5, pady=3)
-
-    lbl_5= Label(wrapper3, text="Quantity").grid(row=4, column=0, padx=5, pady=3)
-    lbl_5_entry= Entry(wrapper3, textvariable=QUANTITY, width="20", border="5").grid(row=4, column=1, padx=5, pady=3)
-
-    lbl_6= Label(wrapper3, text="Date").grid(row=5, column=0, padx=5, pady=3)
-    cal = DateEntry(wrapper3, textvariable=DATE, width="20", border="5")
-    cal.grid(row=5, column=1, padx=5, pady=3)
-    
-    lbl_7= Label(wrapper3, text="Total(#)").grid(row=6, column=0, padx=5, pady=3)
-    lbl_7_entry= Entry(wrapper3, textvariable=TOTAL, width="20", border="5").grid(row=6, column=1, padx=5, pady=3)
-
-    Button(wrapper3, text="CALCULATE", bg="yellow", fg="black",border="5", font=('Time New Roman',10,'bold'), command=total_price).grid(row=7,column=0, padx=6, pady=3)
-    Button(wrapper3, text="ADD TO CART", bg="yellow", fg="black",border="5", font=('Time New Roman',10,'bold'), command=Add_to).grid(row=7,column=1, padx=6, pady=3)
-    Button(wrapper3, text="CLEAR", bg="red", fg="black",border="5", font=("Times New Roman",10,"bold"), command=delete_data).grid(row=7, column=2, padx=6, pady=3)
-
-# def delete():
-#     slbl_1_entry.get()
-#     slbl_1_entry.delete(0)
-    # lbl_2_entry= Entry(Sales, textvariable='', width="20", border="5")
-
-    # lbl_3_entry= Entry(Sales, textvariable='', width="20", border="5")
-
-    # lbl_4_entry= Entry(Sales, textvariable='', width="20", border="5")
-
-    # lbl_5_entry= Entry(Sales, textvariable='', width="20", border="5")
-    
-    # lbl_7_entry= Entry(Sales, textvariable='', width="20", border="5")
-#======================================================================Staff Registeration======================================================================================================================================================================================================
+#======================================================================Staff Registration======================================================================================================================================================================================================
 def staff_reg():
     global staff_reg
     staff_reg =Toplevel()
@@ -1188,7 +1154,6 @@ def sales_admin():
     tree_view2.column('8',width="100")
     tree_view2.pack()
 
-    Button(sales_admin, text="TODAY'S SALES", bg="yellow", fg="black", height="1", border="5", font=('Time New Roman',10,'bold'), command=show).pack(side=tk.LEFT, padx=6)
     Button(sales_admin, text="VIEW ALL SALES", bg="yellow", fg="black", height="1", border="5", font=('Time New Roman',10,'bold'), command=show).pack(side=tk.LEFT, padx=6)
     Button(sales_admin, text="BACK", bg="RED", fg="black", height="1", border="5", font=('Time New Roman',10,'bold'), command=sales_admin_back).pack(side=tk.LEFT, padx=6)
 #======================================================================Front page======================================================================================================================================================================================================
